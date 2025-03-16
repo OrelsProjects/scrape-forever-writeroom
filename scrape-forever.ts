@@ -52,7 +52,7 @@ const verifyAllPublicationsHavePublicationLinks = async () => {
 };
 
 export const scrapeForever = async (type: "note" | "post") => {
-  let shouldReset = true;
+  let shouldReset = false;
   const statusProcessing = "processing-" + type;
   while (true) {
     if (shouldReset) {
