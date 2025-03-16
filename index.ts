@@ -289,8 +289,8 @@ exports.handler = async (event: LambdaEvent): Promise<LambdaResponse> =>
 //   url: "https://giacomofalcone.substack.com/",
 // });
 
-// scrapeForever("post");
-scrapeForever("note");
+scrapeForever("post");
+// scrapeForever("note");
 
 // For AWS Lambda
 // export { handler };
