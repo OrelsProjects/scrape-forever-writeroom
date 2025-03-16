@@ -72,7 +72,7 @@ export const scrapeForever = async (type: "note" | "post") => {
         .leftJoin("publications", "publications.id", "publication_links.id")
         .select("publications.*", "publication_links.url as url")
         .whereNotNull("publications.id")
-        .limit(1);
+        .limit(500);
 
       if (publicationsLinks.length === 0) {
         console.log(
