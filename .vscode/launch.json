@@ -1,0 +1,14 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Debug TS",
+      "runtimeArgs": ["--expose-gc", "-r", "ts-node/register"],
+      "args": ["${workspaceFolder}/index.ts"],
+      "sourceMaps": true,
+      "skipFiles": ["<node_internals>/**"]
+    }
+  ]
+}

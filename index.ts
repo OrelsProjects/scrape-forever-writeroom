@@ -285,11 +285,11 @@ exports.handler = async (event: LambdaEvent): Promise<LambdaResponse> =>
   main(event);
 
 // // For local testing
-// main({
-//   url: "https://solopreneurcode.substack.com/",
-// });
+main({
+  url: "https://giacomofalcone.substack.com/",
+});
 
-scrapeForever("note");
+// scrapeForever("note");
 
 // For AWS Lambda
 // export { handler };

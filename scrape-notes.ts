@@ -239,7 +239,7 @@ async function fetchAllNoteComments(authorId: string): Promise<number> {
     }
 
     const newComments = collectedComments.filter(
-      (comment) => !userNoteIdToNoteIdMap.has(comment.comment?.id)
+      (comment) => !userNoteIdToNoteIdMap.has(comment.comment?.id.toString())
     );
 
     if (!data.nextCursor || collectedComments.length >= maxNotes) {
