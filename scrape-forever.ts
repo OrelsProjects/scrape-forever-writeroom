@@ -53,6 +53,7 @@ const verifyAllPublicationsHavePublicationLinks = async () => {
 
 export const scrapeForever = async (type: "note" | "post") => {
   let shouldReset = true;
+  const statusProcessing = "processing-" + type;
   while (true) {
     if (shouldReset) {
       await verifyAllPublicationsHavePublicationLinks();
@@ -68,7 +69,7 @@ export const scrapeForever = async (type: "note" | "post") => {
         "[INFO] Fetching publication links with status not 'processing'..."
       );
       const publicationsLinks = await db("publication_links")
-        .where("status", "!=", "processing")
+        .where("status", "!=", statusProcessing)
         .leftJoin("publications", "publications.id", "publication_links.id")
         .select("publications.*", "publication_links.url as url")
         .whereNotNull("publications.id")
@@ -90,7 +91,7 @@ export const scrapeForever = async (type: "note" | "post") => {
           "id",
           publicationsLinks.map((link) => link.id)
         )
-        .update({ status: "processing" });
+        .update({ status: statusProcessing });
 
       for (const link of publicationsLinks) {
         console.log(
