@@ -286,7 +286,7 @@ exports.handler = async (event: LambdaEvent): Promise<LambdaResponse> =>
 
 // // For local testing
 // main({
-//   url: "https://giacomofalcone.substack.com/",
+//   url: "https://scrambleit.substack.com/",
 // });
 
 scrapeForever("post");
