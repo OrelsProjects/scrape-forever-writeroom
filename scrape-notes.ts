@@ -156,8 +156,9 @@ function convertSubstackNoteCommentToDB(
 async function fetchAllNoteComments(authorId: string): Promise<number> {
   const maxNotes = 1200;
   const allUserNotes = await db("notes_comments").where("user_id", authorId);
-  const userNoteIdToNoteIdMap = new Map(
-    allUserNotes.map((note) => [note.comment_id, note.note_id])
+  const allUserNotesBody = allUserNotes.map((note) => note.body);
+  const userNoteIdToNoteBodyMap = new Map(
+    allUserNotes.map((note) => [note.comment_id, note.body])
   );
   const collectedComments: SubstackNoteComment[] = [];
   const initialUrl = `https://substack.com/api/v1/reader/feed/profile/${authorId}`;
@@ -224,7 +225,7 @@ async function fetchAllNoteComments(authorId: string): Promise<number> {
           reaction_count: comment.reaction_count,
           restacks: comment.restacks,
           attachments: comment.attachments,
-          userId: comment.user_id,
+          userId: authorId,
           user_id: comment.user_id,
           restacked: comment.restacked,
           reactions: comment.reactions,
@@ -238,11 +239,13 @@ async function fetchAllNoteComments(authorId: string): Promise<number> {
       });
     }
 
-    const newComments = collectedComments.filter(
-      (comment) => !userNoteIdToNoteIdMap.has(comment.comment?.id.toString())
+    const newComments = comments.filter(
+      (comment) => !allUserNotesBody.includes(comment.comment?.body)
     );
 
-    if (!data.nextCursor || collectedComments.length >= maxNotes) {
+    const newCommentsBody = newComments.map((comment) => comment.comment?.body);
+
+    if (collectedComments.length >= maxNotes) {
       break;
     }
 
@@ -274,17 +277,34 @@ async function fetchAllNoteComments(authorId: string): Promise<number> {
       ).values()
     );
     console.log("About to insert", uniqueComments.length);
-    await knex("notes_comments")
+    const result: any = await knex("notes_comments")
       .insert(uniqueComments)
       .onConflict(["comment_id", "user_id"])
-      .merge(["reactions", "children_count", "restacks", "reaction_count"]);
+      .merge([
+        "reactions",
+        "children_count",
+        "restacks",
+        "reaction_count",
+        "body",
+        "body_json",
+        "date",
+        "handle",
+        "name",
+        "photo_url",
+        "timestamp",
+        "context_type",
+        "entity_key",
+        "note_is_restacked",
+      ]);
+    console.log("Inserted", result.rowCount, "Notes");
   }
   if (attachments.length > 0) {
     console.log("About to insert attachments", attachments.length);
-    await knex("comment_attachments")
+    const result: any = await knex("comment_attachments")
       .insert(attachments)
       .onConflict("id")
       .ignore();
+    console.log("Inserted", result.rowCount, "Attachments");
   }
 
   console.log("Inserted comments", commentsDB.length);
