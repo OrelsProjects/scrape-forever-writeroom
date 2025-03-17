@@ -54,13 +54,17 @@ const verifyAllPublicationsHavePublicationLinks = async () => {
 export const scrapeForever = async (type: "note" | "post") => {
   let shouldReset = false;
   const statusProcessing = "processing-" + type;
+  const columnName =
+    type === "note" ? "is_notes_scraping" : "is_posts_scraping";
   while (true) {
     if (shouldReset) {
       await verifyAllPublicationsHavePublicationLinks();
       console.log(
         "[INFO] Resetting all publication links statuses to 'completed'"
       );
-      await db("publication_links").update({ status: "completed" });
+      await db("publication_links").update({
+        [columnName]: false,
+      });
       shouldReset = false;
     }
 
@@ -69,7 +73,7 @@ export const scrapeForever = async (type: "note" | "post") => {
         "[INFO] Fetching publication links with status not 'processing'..."
       );
       const publicationsLinks = await db("publication_links")
-        .where("status", "!=", statusProcessing)
+        .where(columnName, "!=", true)
         .leftJoin("publications", "publications.id", "publication_links.id")
         .select("publications.*", "publication_links.url as url")
         .whereNotNull("publications.id")
