@@ -95,7 +95,7 @@ export const scrapeForever = async (type: "note" | "post") => {
           "id",
           publicationsLinks.map((link) => link.id)
         )
-        .update({ status: statusProcessing });
+        .update({ [columnName]: true });
 
       for (const link of publicationsLinks) {
         console.log(

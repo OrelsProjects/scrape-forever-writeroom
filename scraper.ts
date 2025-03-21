@@ -433,6 +433,12 @@ async function populatePublications(
   /** Scrape articles body */
   const maxInParallel = 10;
   const chunks: Post[][] = [];
+  // Filter out posts that are older than 2 weeks
+  const twoWeeksAgo = new Date();
+  twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+  allPosts = allPosts.filter((post) =>
+    post.post_date ? new Date(post.post_date) >= twoWeeksAgo : false
+  );
   for (let i = 0; i < allPosts.length; i += maxInParallel) {
     chunks.push(allPosts.slice(i, i + maxInParallel));
   }

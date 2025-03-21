@@ -265,9 +265,15 @@ async function fetchAllNoteComments(authorId: string): Promise<number> {
   );
 
   // const notes = dbNotes.map((note) => note.note);
+  // Insert only those that are older than 2 weeks to make sure we don't insert popular notes that were just posted.
+  const twoWeeksAgo = new Date();
+  twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
   const commentsDB = dbNotes
     .map((note) => note.comment)
-    .filter((comment): comment is DbComment => comment !== null);
+    .filter((comment): comment is DbComment => comment !== null)
+    .filter(
+      (comment) => new Date(comment.date || comment.timestamp) >= twoWeeksAgo
+    );
   const attachments = dbNotes.flatMap((note) => note.attachments);
 
   if (commentsDB.length > 0) {
