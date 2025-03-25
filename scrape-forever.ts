@@ -51,76 +51,121 @@ const verifyAllPublicationsHavePublicationLinks = async () => {
   }
 };
 
-export const scrapeForever = async (type: "note" | "post") => {
+const scrapeForeverNotes = async () => {
+  console.log("[INFO] Starting scrapeForeverNotes");
   let shouldReset = false;
-  const statusProcessing = "processing-" + type;
-  const columnName =
-    type === "note" ? "is_notes_scraping" : "is_posts_scraping";
   while (true) {
     if (shouldReset) {
-      await verifyAllPublicationsHavePublicationLinks();
-      console.log(
-        "[INFO] Resetting all publication links statuses to 'completed'"
-      );
-      await db("publication_links").update({
-        [columnName]: false,
+      await db("bylines").update({
+        is_notes_scraping: false,
       });
       shouldReset = false;
     }
-
     while (true) {
-      console.log(
-        "[INFO] Fetching publication links with status not 'processing'..."
-      );
-      const publicationsLinks = await db("publication_links")
-        .where(columnName, "!=", true)
-        .leftJoin("publications", "publications.id", "publication_links.id")
-        .select("publications.*", "publication_links.url as url")
-        .whereNotNull("publications.id")
+      const bylines = await db("bylines")
+        .where("is_notes_scraping", "!=", true)
+        .whereNotNull("bylines.id")
         .limit(500);
 
-      if (publicationsLinks.length === 0) {
-        console.log(
-          "[INFO] No publication links found. Resetting on next loop."
-        );
+      if (bylines.length === 0) {
+        console.log("[INFO] No bylines found. Resetting on next loop.");
         shouldReset = true;
         break;
       }
 
-      console.log(
-        `[INFO] Found ${publicationsLinks.length} publication links. Marking as 'processing'...`
-      );
-      await db("publication_links")
-        .whereIn(
-          "id",
-          publicationsLinks.map((link) => link.id)
-        )
-        .update({ [columnName]: true });
+      await db("bylines").update({
+        is_notes_scraping: true,
+      });
 
-      for (const link of publicationsLinks) {
-        console.log(
-          `[INFO] Processing publication link ID: ${link.id}, URL: ${link.url}`
-        );
-        const { validUrl } = getUrlComponents(link.url);
-
+      for (const byline of bylines) {
         try {
-          if (type === "post") {
+          console.log(
+            `[INFO] Fetching all note comments for author ID: ${byline.id}`
+          );
+          await fetchAllNoteComments(byline.id);
+          console.log(`[SUCCESS] Completed processing for ID: ${byline.id}`);
+        } catch (error) {
+          console.error(
+            `[ERROR] Failed processing for ID: ${byline.id}, Error:`,
+            error
+          );
+        }
+      }
+    }
+  }
+};
+
+export const scrapeForever = async (type: "note" | "post") => {
+  if (type === "note") {
+    await scrapeForeverNotes();
+  } else {
+    let shouldReset = false;
+
+    const columnName = "is_posts_scraping";
+    while (true) {
+      if (shouldReset) {
+        await verifyAllPublicationsHavePublicationLinks();
+        console.log(
+          "[INFO] Resetting all publication links statuses to 'completed'"
+        );
+        await db("publication_links").update({
+          [columnName]: false,
+        });
+        shouldReset = false;
+      }
+
+      while (true) {
+        console.log(
+          "[INFO] Fetching publication links with status not 'processing'..."
+        );
+        const publicationsLinks = await db("publication_links")
+          .where(columnName, "!=", true)
+          .leftJoin("publications", "publications.id", "publication_links.id")
+          .select("publications.*", "publication_links.url as url")
+          .whereNotNull("publications.id")
+          .limit(500);
+
+        if (publicationsLinks.length === 0) {
+          console.log(
+            "[INFO] No publication links found. Resetting on next loop."
+          );
+          shouldReset = true;
+          break;
+        }
+
+        console.log(
+          `[INFO] Found ${publicationsLinks.length} publication links. Marking as 'processing'...`
+        );
+        await db("publication_links")
+          .whereIn(
+            "id",
+            publicationsLinks.map((link) => link.id)
+          )
+          .update({ [columnName]: true });
+
+        for (const link of publicationsLinks) {
+          console.log(
+            `[INFO] Processing publication link ID: ${link.id}, URL: ${link.url}`
+          );
+          const { validUrl } = getUrlComponents(link.url);
+
+          try {
             console.log(
               `[INFO] Populating publications for URL: ${validUrl}, ID: ${link.id}`
             );
             await populatePublications(validUrl, link.id.toString(), true);
-          } else {
+
             console.log(
               `[INFO] Fetching all note comments for author ID: ${link.author_id}`
             );
             await fetchAllNoteComments(link.author_id);
+            console.log(`[SUCCESS] Completed processing for ID: ${link.id}`);
+          } catch (error) {
+            console.error(
+              `[ERROR] Failed processing for ID: ${link.id}, Error:`,
+              error
+            );
           }
-          console.log(`[SUCCESS] Completed processing for ID: ${link.id}`);
-        } catch (error) {
-          console.error(
-            `[ERROR] Failed processing for ID: ${link.id}, Error:`,
-            error
-          );
         }
       }
     }
