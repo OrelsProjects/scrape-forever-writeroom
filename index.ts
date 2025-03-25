@@ -2,6 +2,7 @@ import { populatePublications } from "./scraper";
 import { db } from "./db";
 import { fetchAllNoteComments } from "./scrape-notes";
 import { extractContent, getUrlComponents } from "./utils";
+import axios from "axios";
 import { scrapeForever } from "./scrape-forever";
 
 interface PublicationDB {
@@ -38,7 +39,6 @@ interface PublicationDataResponse {
     publishedBylines: Byline[];
   }[];
 }
-
 
 interface Publication {
   id: string;
@@ -286,11 +286,11 @@ exports.handler = async (event: LambdaEvent): Promise<LambdaResponse> =>
 
 // // For local testing
 // main({
-//   url: "https://scrambleit.substack.com/",
+//   url: "https://writebuildscale.substack.com/",
 // });
 
-scrapeForever("post");
-// scrapeForever("note");
+// scrapeForever("post");
+scrapeForever("note");
 
 // For AWS Lambda
 // export { handler };

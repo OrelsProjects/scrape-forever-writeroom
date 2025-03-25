@@ -157,9 +157,9 @@ async function fetchAllNoteComments(authorId: string): Promise<number> {
   const maxNotes = 1200;
   const allUserNotes = await db("notes_comments").where("user_id", authorId);
   const allUserNotesBody = allUserNotes.map((note) => note.body);
-  const userNoteIdToNoteBodyMap = new Map(
-    allUserNotes.map((note) => [note.comment_id, note.body])
-  );
+  const twoWeeksAgo = new Date();
+  twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+
   const collectedComments: SubstackNoteComment[] = [];
   const initialUrl = `https://substack.com/api/v1/reader/feed/profile/${authorId}`;
   let nextUrl: string | null = initialUrl;
@@ -239,11 +239,10 @@ async function fetchAllNoteComments(authorId: string): Promise<number> {
       });
     }
 
-    const newComments = comments.filter(
-      (comment) => !allUserNotesBody.includes(comment.comment?.body)
-    );
-
-    const newCommentsBody = newComments.map((comment) => comment.comment?.body);
+    // All comments that are not in the user's notes or that are younger than 2 week
+    const newComments = comments
+      .filter((comment) => !allUserNotesBody.includes(comment.comment?.body))
+      .filter((comment) => new Date(comment.comment?.date) >= twoWeeksAgo);
 
     if (collectedComments.length >= maxNotes) {
       break;
@@ -266,14 +265,11 @@ async function fetchAllNoteComments(authorId: string): Promise<number> {
 
   // const notes = dbNotes.map((note) => note.note);
   // Insert only those that are older than 2 weeks to make sure we don't insert popular notes that were just posted.
-  const twoWeeksAgo = new Date();
-  twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+
   const commentsDB = dbNotes
     .map((note) => note.comment)
-    .filter((comment): comment is DbComment => comment !== null)
-    .filter(
-      (comment) => new Date(comment.date || comment.timestamp) >= twoWeeksAgo
-    );
+    .filter((comment): comment is DbComment => comment !== null);
+
   const attachments = dbNotes.flatMap((note) => note.attachments);
 
   if (commentsDB.length > 0) {
