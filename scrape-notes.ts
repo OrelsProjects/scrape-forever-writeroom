@@ -264,11 +264,13 @@ async function fetchAllNoteComments(authorId: string): Promise<number> {
 
     if (uniqueComments.length === 0) {
       currentNoNewNotesCount++;
+      console.log(`No new notes for ${currentNoNewNotesCount} tries`);
       if (currentNoNewNotesCount >= marginOfSafety) {
         break;
       }
     } else {
       currentNoNewNotesCount = 0;
+      console.log(`New notes found, resetting counter`);
     }
 
     console.log(`Fetched ${collectedComments.length} notes out of ${maxNotes}`);
