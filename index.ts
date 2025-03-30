@@ -284,7 +284,7 @@ const main = async (event: LambdaEvent): Promise<LambdaResponse> => {
 exports.handler = async (event: LambdaEvent): Promise<LambdaResponse> =>
   main(event);
 
-// // For local testing
+// For local testing
 // main({
 //   url: "https://newsletter.eng-leadership.com/",
 // });

@@ -155,6 +155,8 @@ function convertSubstackNoteCommentToDB(
 
 async function fetchAllNoteComments(authorId: string): Promise<number> {
   const maxNotes = 1200;
+  const marginOfSafety = 10;
+  let currentNoNewNotesCount = 0;
   const allUserNotes = await db("notes_comments").where("user_id", authorId);
   const allUserNotesBody = allUserNotes.map((note) => note.body);
   const twoWeeksAgo = new Date();
@@ -257,8 +259,12 @@ async function fetchAllNoteComments(authorId: string): Promise<number> {
     }
 
     if (uniqueComments.length === 0) {
-      // No new comments, break
-      break;
+      currentNoNewNotesCount++;
+      if (currentNoNewNotesCount >= marginOfSafety) {
+        break;
+      }
+    } else {
+      currentNoNewNotesCount = 0;
     }
 
     console.log(`Fetched ${collectedComments.length} notes out of ${maxNotes}`);
