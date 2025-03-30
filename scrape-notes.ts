@@ -155,7 +155,7 @@ function convertSubstackNoteCommentToDB(
 
 async function fetchAllNoteComments(authorId: string): Promise<number> {
   const maxNotes = 99999;
-  const marginOfSafety = 20;
+  const marginOfSafety = 15;
   let currentNoNewNotesCount = 0;
   const allUserNotes = await db("notes_comments").where("user_id", authorId);
   const allUserNotesBody = allUserNotes.map((note) => note.body);
