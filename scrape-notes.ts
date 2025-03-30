@@ -242,13 +242,21 @@ async function fetchAllNoteComments(authorId: string): Promise<number> {
     // All comments that are not in the user's notes or that are younger than 2 week
     const newComments = comments
       .filter((comment) => !allUserNotesBody.includes(comment.comment?.body))
-      .filter((comment) => new Date(comment.comment?.date) >= twoWeeksAgo);
+
+    const commentsLessThanTwoWeeks = comments.filter((comment) => new Date(comment.comment?.date) >= twoWeeksAgo);
+
+    const allNewComments = [...newComments, ...commentsLessThanTwoWeeks];
+    // Remove duplicates
+    const uniqueComments = allNewComments.filter(
+      (comment, index, self) =>
+        index === self.findIndex((t) => t.comment?.body === comment.comment?.body)
+    );
 
     if (collectedComments.length >= maxNotes) {
       break;
     }
 
-    if (newComments.length === 0) {
+    if (uniqueComments.length === 0) {
       // No new comments, break
       break;
     }
