@@ -154,7 +154,7 @@ function convertSubstackNoteCommentToDB(
 }
 
 async function fetchAllNoteComments(authorId: string): Promise<number> {
-  const maxNotes = 1200;
+  const maxNotes = 99999;
   const marginOfSafety = 10;
   let currentNoNewNotesCount = 0;
   const allUserNotes = await db("notes_comments").where("user_id", authorId);
@@ -242,16 +242,20 @@ async function fetchAllNoteComments(authorId: string): Promise<number> {
     }
 
     // All comments that are not in the user's notes or that are younger than 2 week
-    const newComments = comments
-      .filter((comment) => !allUserNotesBody.includes(comment.comment?.body))
+    const newComments = comments.filter(
+      (comment) => !allUserNotesBody.includes(comment.comment?.body)
+    );
 
-    const commentsLessThanTwoWeeks = comments.filter((comment) => new Date(comment.comment?.date) >= twoWeeksAgo);
+    const commentsLessThanTwoWeeks = comments.filter(
+      (comment) => new Date(comment.comment?.date) >= twoWeeksAgo
+    );
 
     const allNewComments = [...newComments, ...commentsLessThanTwoWeeks];
     // Remove duplicates
     const uniqueComments = allNewComments.filter(
       (comment, index, self) =>
-        index === self.findIndex((t) => t.comment?.body === comment.comment?.body)
+        index ===
+        self.findIndex((t) => t.comment?.body === comment.comment?.body)
     );
 
     if (collectedComments.length >= maxNotes) {
