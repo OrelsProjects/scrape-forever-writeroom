@@ -331,8 +331,8 @@ exports.handler = async (event: LambdaEvent): Promise<LambdaResponse> =>
 //   // authorId: "58119475",
 // });
 
-// scrapeForever("post");
-scrapeForever("note");
+scrapeForever("post");
+// scrapeForever("note");
 
 // For AWS Lambda
 // export { handler };
