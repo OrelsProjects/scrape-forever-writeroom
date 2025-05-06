@@ -36,6 +36,37 @@ const allowedPostFields = [
   "podcast_episode_image_info",
 ];
 
+const mergePostFields = [
+  "title",
+  "social_title",
+  "search_engine_title",
+  "search_engine_description",
+  "slug",
+  "post_date",
+  "audience",
+  "canonical_url",
+  "reactions",
+  "subtitle",
+  "cover_image",
+  "cover_image_is_square",
+  "cover_image_is_explicit",
+  "description",
+  "body_json",
+  "truncated_body_text",
+  "wordcount",
+  "postTags",
+  "reaction",
+  "reaction_count",
+  "comment_count",
+  "child_comment_count",
+  "hidden",
+  "explicit",
+  "email_from_name",
+  "is_guest",
+  "bestseller_tier",
+  "podcast_episode_image_info",
+];
+
 // Define interfaces for our data structures
 interface Post {
   id: string;
@@ -75,7 +106,7 @@ interface Post {
   [key: string]: any;
 }
 
-interface Publication {
+export interface Publication {
   id: string;
   name: string;
   subdomain: string;
@@ -165,7 +196,6 @@ interface PublicationStatus {
 
 interface ValidationResult {
   shouldScrape: boolean;
-  userPosts: Post[];
 }
 
 const filterPost = (post: Post): Post =>
@@ -180,16 +210,23 @@ async function insertInBatches(
   table: string,
   data: any[],
   batchSize: number = 100,
-  trx: any
+  trx: any,
+  mergeFields?: string[]
 ): Promise<void> {
   for (let i = 0; i < data.length; i += batchSize) {
     const batch = data.slice(i, i + batchSize);
+
+    const fields = mergeFields
+      ? mergeFields.length > 0
+        ? mergeFields
+        : "*"
+      : "*";
 
     for (const item of batch) {
       await trx(table)
         .insert(item)
         .onConflict("id") // Assuming `id` is the primary key
-        .merge();
+        .merge(fields);
     }
   }
 }
@@ -359,24 +396,17 @@ async function validatePublicationNeedsScrapeArticles(
   publication_id?: string
 ): Promise<ValidationResult> {
   if (!publication_id) {
-    return { shouldScrape: true, userPosts: [] };
+    return { shouldScrape: true };
   }
   const publication = await db("publications")
     .where("id", "=", parseInt(publication_id))
     .first();
 
   if (!publication) {
-    return { shouldScrape: true, userPosts: [] };
+    return { shouldScrape: true };
   }
-  const userPosts = await db("posts").where(
-    "publication_id",
-    "=",
-    publication.id.toString()
-  );
 
-  // const postsNoBody = userPosts.filter((post) => !post.body_text);
-
-  return { shouldScrape: true, userPosts };
+  return { shouldScrape: true };
 }
 
 async function populatePublications(
@@ -387,14 +417,15 @@ async function populatePublications(
   let allPosts: Post[] = [];
   const publicationsStatus: PublicationStatus[] = [];
 
-  const { shouldScrape, userPosts } =
-    await validatePublicationNeedsScrapeArticles(publication_id);
+  const { shouldScrape } = await validatePublicationNeedsScrapeArticles(
+    publication_id
+  );
 
   if (!shouldScrape && !force_scrape) {
     return publicationsStatus;
   }
 
-  for (let i = 0; i < 300; i += step) {
+  for (let i = 0; i < 9999; i += step) {
     if (i > 0 && i % 600 === 0) {
       console.log(`Waiting 1 minute after ${i} posts`);
       await new Promise((resolve) => setTimeout(resolve, 60000));
@@ -410,22 +441,13 @@ async function populatePublications(
       break;
     }
 
-    if (posts.length === 0) break;
-    // if there are new posts inside scrapedPosts, add all the new ones to allPosts and break. The rest are already in the db
-    const newPosts = posts.filter(
-      (post) =>
-        !userPosts.some(
-          (p) => p.canonical_url === post.canonical_url || p.id === post.id
-        )
-    );
-
-    if (newPosts.length === 0) {
+    if (posts.length === 0) {
       // No new posts, break
       console.log("No new posts, breaking");
       break;
     }
-    allPosts.push(...newPosts);
-    if (newPosts.length !== posts.length) {
+    allPosts.push(...posts);
+    if (posts.length !== posts.length) {
       break;
     }
   }
@@ -434,11 +456,6 @@ async function populatePublications(
   const maxInParallel = 10;
   const chunks: Post[][] = [];
   // Filter out posts that are older than 2 weeks
-  const twoWeeksAgo = new Date();
-  twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
-  allPosts = allPosts.filter((post) =>
-    post.post_date ? new Date(post.post_date) >= twoWeeksAgo : false
-  );
   for (let i = 0; i < allPosts.length; i += maxInParallel) {
     chunks.push(allPosts.slice(i, i + maxInParallel));
   }
@@ -477,7 +494,7 @@ async function populatePublications(
         trx
       );
       await insertInBatches("bylines", publicationItems.bylines, 100, trx);
-      await insertInBatches("posts", formattedPosts, 100, trx);
+      await insertInBatches("posts", formattedPosts, 100, trx, mergePostFields);
       await insertInBatches(
         "post_bylines",
         publicationItems.postBylines,

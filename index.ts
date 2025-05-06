@@ -2,9 +2,8 @@ import { populatePublications } from "./scraper";
 import { db } from "./db";
 import { fetchAllNoteComments } from "./scrape-notes";
 import { extractContent, getUrlComponents } from "./utils";
-import axios from "axios";
+import { getAllAuthorPublications } from "./dal/publication";
 import { scrapeForever } from "./scrape-forever";
-
 interface PublicationDB {
   id: number;
   name: string;
@@ -62,7 +61,8 @@ interface PublicationStatus {
 }
 
 interface LambdaEvent {
-  url: string;
+  url?: string;
+  authorId?: string;
   [key: string]: any;
 }
 
@@ -137,9 +137,13 @@ export const createPublication = async (
   };
 };
 
-const setPublications = async (url: string): Promise<Publication | null> => {
+const setPublications = async (
+  url: string,
+  id?: string,
+  onHasPublication?: (pub: Publication | null) => Promise<void>
+): Promise<Publication | null> => {
   const { validUrl, mainComponentInUrl } = getUrlComponents(url);
-
+  let didFetchNotes = false;
   console.log("Valid URL: ", validUrl);
   console.log("Main component in URL: ", mainComponentInUrl);
 
@@ -150,25 +154,31 @@ const setPublications = async (url: string): Promise<Publication | null> => {
 
   let publication: Publication | null = null;
 
-  if (!publicationLink) {
-    publication = await createPublication(url);
-    if (publication) {
-      await db("publication_links").insert({
-        url: validUrl,
-        status: "started",
-        id: publication.id,
-      });
-      publicationLink = {
-        url: validUrl,
-        status: "started",
-        id: publication.id,
-      };
+  if (id) {
+    publication = await db("publications").select("*").where("id", id).first();
+  }
+
+  if (!publication) {
+    if (!publicationLink) {
+      publication = await createPublication(url);
+      if (publication) {
+        await db("publication_links").insert({
+          url: validUrl,
+          status: "started",
+          id: publication.id,
+        });
+        publicationLink = {
+          url: validUrl,
+          status: "started",
+          id: publication.id,
+        };
+      }
+    } else {
+      publication = (await db("publications")
+        .select("*")
+        .where("id", "=", publicationLink?.id)
+        .first()) as Publication;
     }
-  } else {
-    publication = (await db("publications")
-      .select("*")
-      .where("id", "=", publicationLink?.id)
-      .first()) as Publication;
   }
 
   if (!publication || publication.name?.toLocaleLowerCase() === "unknown") {
@@ -182,13 +192,6 @@ const setPublications = async (url: string): Promise<Publication | null> => {
 
   if (!publicationLink) {
     throw new Error("Publication link not found for: " + validUrl);
-  }
-
-  const isCompleted = publicationLink?.status === "completed";
-
-  if (isCompleted) {
-    console.log("Publication completed: ", publication);
-    return publication;
   }
 
   if (publicationLink) {
@@ -209,62 +212,100 @@ const setPublications = async (url: string): Promise<Publication | null> => {
   }
 
   console.log("About to populate publication");
-  const publicationsStatus = await populatePublications(
-    validUrl,
-    publication ? publication.id : undefined
-  );
-  console.log(publicationsStatus);
+  // const publicationsStatus = await populatePublications(
+  //   validUrl,
+  //   publication ? publication.id : undefined
+  // );
+  // console.log(publicationsStatus);
 
-  const publicationsUpdate = publicationsStatus.map(
-    (status: PublicationStatus) => ({
-      url: status.url,
-      completed_at:
-        status.status === "completed" ? new Date().toISOString() : null,
-      status: status.status,
-    })
-  );
-
-  for (const update of publicationsUpdate) {
-    await db("publication_links")
-      .update({ status: update.status })
-      .where("url", update.url);
+  try {
+    console.log("Setting notes for", publication?.id);
+    await onHasPublication?.(publication);
+  } catch (err) {
+    console.error("Error setting notes: ", err);
+  } finally {
+    didFetchNotes = true;
   }
+  
+  // const publicationsUpdate = publicationsStatus.map(
+  //   (status: PublicationStatus) => ({
+  //     url: status.url,
+  //     completed_at:
+  //       status.status === "completed" ? new Date().toISOString() : null,
+  //     status: status.status,
+  //   })
+  // );
+
+  // for (const update of publicationsUpdate) {
+  //   await db("publication_links")
+  //     .update({ status: update.status })
+  //     .where("url", update.url);
+  // }
 
   console.log("Publication: ", publication);
+  const maxWaitTimes = 12 * 5; // 5 minutes
+  let waitTime = 0;
+  while (!didFetchNotes) {
+    console.log("Waiting for notes to be fetched, 5 seconds");
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+    if (waitTime++ > maxWaitTimes) {
+      console.log("Max wait time reached, exiting");
+      break;
+    }
+  }
   return publication;
 };
 
 const main = async (event: LambdaEvent): Promise<LambdaResponse> => {
   try {
-    const url = event.url;
+    let url = event.url;
+    let urls = url ? [url] : [];
+    const authorId = event.authorId;
 
-    if (!url || typeof url !== "string") {
-      console.error("Invalid input: 'url' must be a string");
+    if (!url && !authorId) {
+      console.error("No URL or authorId provided");
       return {
         statusCode: 400,
-        body: JSON.stringify({
-          error: "Invalid input: 'url' must be a string",
-        }),
+        body: JSON.stringify({ error: "No URL or authorId provided" }),
       };
     }
 
-    console.log("Fetching publication for", url);
+    if (authorId && !url) {
+      console.log("[INFO] Fetching all publications for author", authorId);
+      const publications = await getAllAuthorPublications(authorId);
+      urls = publications.map(
+        (publication) => publication.custom_domain || publication.subdomain
+      );
+      console.log(
+        "[INFO] Found",
+        urls.length,
+        "publications for author",
+        authorId
+      );
+    }
 
-    const publication = await setPublications(url);
-
-    console.log("Publication: ", publication);
-
-    if (publication) {
-      if (publication.author_id) {
-        console.log("Fetching notes for", publication.author_id);
-        await fetchAllNoteComments(publication.author_id);
-        console.log(
-          "Notes fetched and inserted to db for",
-          publication.author_id
-        );
-      } else {
-        console.log("No author id for", publication.id);
+    console.log("[INFO] Fetching publication for", urls);
+    let publication: Publication | null = null;
+    if (urls.length > 0) {
+      for (const url of urls) {
+        if (!url) {
+          continue;
+        }
+        publication = await setPublications(url);
+        console.log("[INFO] Publication: ", publication);
       }
+    } else {
+      console.log("[ERROR] No URL provided");
+    }
+
+    const author_id = authorId || publication?.author_id;
+
+    if (author_id) {
+      console.log("[INFO] Fetching notes for", author_id);
+      await fetchAllNoteComments(author_id);
+      console.log("[INFO] Notes fetched and inserted to db for", author_id);
+    } else {
+      console.log("[ERROR] No author id for", publication?.id);
     }
 
     return {
@@ -286,7 +327,8 @@ exports.handler = async (event: LambdaEvent): Promise<LambdaResponse> =>
 
 // For local testing
 // main({
-//   url: "https://newsletter.eng-leadership.com/",
+//   url: "https://zaidesanton.substack.com/",
+//   // authorId: "58119475",
 // });
 
 // scrapeForever("post");
