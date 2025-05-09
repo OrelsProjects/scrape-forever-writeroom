@@ -4,6 +4,7 @@ import { fetchAllNoteComments } from "./scrape-notes";
 import { extractContent, getUrlComponents } from "./utils";
 import { getAllAuthorPublications } from "./dal/publication";
 import { scrapeForever } from "./scrape-forever";
+
 interface PublicationDB {
   id: number;
   name: string;
@@ -212,11 +213,11 @@ const setPublications = async (
   }
 
   console.log("About to populate publication");
-  // const publicationsStatus = await populatePublications(
-  //   validUrl,
-  //   publication ? publication.id : undefined
-  // );
-  // console.log(publicationsStatus);
+  const publicationsStatus = await populatePublications(
+    validUrl,
+    publication ? publication.id : undefined
+  );
+  console.log(publicationsStatus);
 
   try {
     console.log("Setting notes for", publication?.id);
@@ -327,12 +328,14 @@ exports.handler = async (event: LambdaEvent): Promise<LambdaResponse> =>
 
 // For local testing
 // main({
-//   url: "https://zaidesanton.substack.com/",
+//   url: "https://techtornado.substack.com/",
 //   // authorId: "58119475",
 // });
 
-scrapeForever("post");
+// scrapeForever("post");
 // scrapeForever("note");
+
+scrapeForever("bylines")
 
 // For AWS Lambda
 // export { handler };

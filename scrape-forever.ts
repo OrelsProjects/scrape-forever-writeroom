@@ -2,7 +2,7 @@ import { db } from "./db";
 import { getUrlComponents } from "./utils";
 import { fetchAllNoteComments } from "./scrape-notes";
 import { populatePublications } from "./scraper";
-
+import { scrapeForeverBylines } from "./dal/bylines";
 const getValidUrl = (publication: any) => {
   const subdomain = publication.subdomain; // Never empty in db
   const customDomain = publication.custom_domain || "";
@@ -95,10 +95,10 @@ const scrapeForeverNotes = async () => {
   }
 };
 
-export const scrapeForever = async (type: "note" | "post") => {
+export const scrapeForever = async (type: "note" | "post" | "bylines") => {
   if (type === "note") {
     await scrapeForeverNotes();
-  } else {
+  } else if (type === "post") {
     let shouldReset = false;
 
     const columnName = "is_posts_scraping";
@@ -158,7 +158,7 @@ export const scrapeForever = async (type: "note" | "post") => {
             console.log(
               `[INFO] Fetching all note comments for author ID: ${link.author_id}`
             );
-            await fetchAllNoteComments(link.author_id);
+            // await fetchAllNoteComments(link.author_id);
             console.log(`[SUCCESS] Completed processing for ID: ${link.id}`);
           } catch (error) {
             console.error(
@@ -169,5 +169,7 @@ export const scrapeForever = async (type: "note" | "post") => {
         }
       }
     }
+  } else if (type === "bylines") {
+    await scrapeForeverBylines();
   }
 };

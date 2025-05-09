@@ -29,11 +29,14 @@ function getRandomUserAgent(): string {
 async function fetchWithHeaders<T>(
   url: string,
   retries: number = 3,
-  minDelay: number = 300
+  minDelay: number = 300,
+  log: boolean = true
 ): Promise<T | null> {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
-      console.log(`[Attempt ${attempt}] Fetching: ${url}`);
+      if (log) {
+        console.log(`[Attempt ${attempt}] Fetching: ${url}`);
+      }
       const validUrl = url.includes("https") ? url : `https://${url}`;
       const response = await axios.get(validUrl, {
         headers: {
@@ -199,7 +202,14 @@ const removeQueryParams = (url: string) => {
   return url.split("?")[0];
 };
 
-export const getUrlComponents = (url: string): UrlComponents => {
+export const getUrlComponents = (
+  url: string,
+  options: {
+    withoutWWW?: boolean;
+  } = {
+    withoutWWW: true,
+  }
+): UrlComponents => {
   if (!url) {
     return { validUrl: "", mainComponentInUrl: "" };
   }
@@ -271,6 +281,10 @@ export const getUrlComponents = (url: string): UrlComponents => {
   const firstSlashAfterLastDot = validUrl.indexOf("/", lastDotIndex);
   if (firstSlashAfterLastDot !== -1) {
     validUrl = validUrl.slice(0, firstSlashAfterLastDot);
+  }
+
+  if (options?.withoutWWW) {
+    validUrl = validUrl.replace("www.", "");
   }
 
   if (validUrl.startsWith("https://")) {
