@@ -1,7 +1,6 @@
 import cuid from "cuid";
 import { fetchWithHeaders } from "./utils";
-import { db, db as knex } from "./db";
-
+import { db } from "./db";
 /**
  * Interfaces for Substack note comments
  */
@@ -155,7 +154,7 @@ function convertSubstackNoteCommentToDB(
 
 async function fetchAllNoteComments(authorId: string): Promise<number> {
   const maxNotes = 99999;
-  const marginOfSafety = 999;
+  const marginOfSafety = 5;
   let currentNoNewNotesCount = 0;
   const allUserNotes = await db("notes_comments").where("user_id", authorId);
   const allUserNotesBody = allUserNotes.map((note) => note.body);
@@ -301,7 +300,7 @@ async function fetchAllNoteComments(authorId: string): Promise<number> {
       ).values()
     );
     console.log("About to insert", uniqueComments.length);
-    const result: any = await knex("notes_comments")
+    const result: any = await db("notes_comments")
       .insert(uniqueComments)
       .onConflict(["comment_id", "user_id"])
       .merge([
@@ -324,7 +323,7 @@ async function fetchAllNoteComments(authorId: string): Promise<number> {
   }
   if (attachments.length > 0) {
     console.log("About to insert attachments", attachments.length);
-    const result: any = await knex("comment_attachments")
+    const result: any = await db("comment_attachments")
       .insert(attachments)
       .onConflict("id")
       .ignore();

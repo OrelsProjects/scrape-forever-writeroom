@@ -227,7 +227,7 @@ const setPublications = async (
   } finally {
     didFetchNotes = true;
   }
-  
+
   // const publicationsUpdate = publicationsStatus.map(
   //   (status: PublicationStatus) => ({
   //     url: status.url,
@@ -271,19 +271,19 @@ const main = async (event: LambdaEvent): Promise<LambdaResponse> => {
       };
     }
 
-    if (authorId && !url) {
-      console.log("[INFO] Fetching all publications for author", authorId);
-      const publications = await getAllAuthorPublications(authorId);
-      urls = publications.map(
-        (publication) => publication.custom_domain || publication.subdomain
-      );
-      console.log(
-        "[INFO] Found",
-        urls.length,
-        "publications for author",
-        authorId
-      );
-    }
+    // if (authorId && !url) {
+    //   console.log("[INFO] Fetching all publications for author", authorId);
+    //   const publications = await getAllAuthorPublications(authorId);
+    //   urls = publications.map(
+    //     (publication) => publication.custom_domain || publication.subdomain
+    //   );
+    //   console.log(
+    //     "[INFO] Found",
+    //     urls.length,
+    //     "publications for author",
+    //     authorId
+    //   );
+    // }
 
     console.log("[INFO] Fetching publication for", urls);
     let publication: Publication | null = null;
@@ -304,6 +304,7 @@ const main = async (event: LambdaEvent): Promise<LambdaResponse> => {
     if (author_id) {
       console.log("[INFO] Fetching notes for", author_id);
       await fetchAllNoteComments(author_id);
+
       console.log("[INFO] Notes fetched and inserted to db for", author_id);
     } else {
       console.log("[ERROR] No author id for", publication?.id);
@@ -327,15 +328,16 @@ exports.handler = async (event: LambdaEvent): Promise<LambdaResponse> =>
   main(event);
 
 // For local testing
-// main({
-//   url: "https://techtornado.substack.com/",
-//   // authorId: "58119475",
-// });
+main({
+  // url: "https://www.darkmatterstory.ai/",
+  // authorId: "58119475",
+  authorId: "58119475",
+});
 
 // scrapeForever("post");
 // scrapeForever("note");
 
-scrapeForever("bylines")
+// scrapeForever("bylines");
 
 // For AWS Lambda
 // export { handler };

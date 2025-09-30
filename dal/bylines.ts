@@ -27,8 +27,8 @@ const nameToSlugSecondary = (handle: string) => {
 };
 
 export async function scrapeForeverBylines() {
-  const batchSize = 100;
-  let currentPage = 0;
+  const batchSize = 1000;
+  let currentPage = 70;
 
   while (true) {
     const bylines = await db("bylines")
@@ -51,7 +51,7 @@ export async function scrapeForeverBylines() {
     for (const byline of bylines) {
       const slug = nameToSlug(byline.name);
       let profileResponse = await fetchWithHeaders(
-        `https://substack.com/api/v1/user/${byline.id}-${slug}/public_profile`,
+        `https://substack.com/api/v1/reader/feed/profile/${byline.id}`,
         3,
         200
       );
@@ -121,3 +121,4 @@ export async function scrapeForeverBylines() {
     currentPage++;
   }
 }
+
